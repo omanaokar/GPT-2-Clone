@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import math
 import torch
 import torch.nn as nn
-from torch.nn import functional as f
+from torch.nn import functional as F
 
 class CausalSelfAttention(nn.Module):
 
@@ -14,7 +14,7 @@ class CausalSelfAttention(nn.Module):
         # output projection
         self.c_proj = nn.Linear(config.n_embd, config.n_embd)
         # regularization
-        self.n_embd = config.n_head
+        self.n_head = config.n_head
         self.n_embd = config.n_embd
         
         self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size))
@@ -94,7 +94,7 @@ class GPT(nn.Module):
         B, T = idx.size()
         assert T <= self.config.block_size, f"Cannot forward sequence of length {T}"
         # forward the token and position embeddings
-        pos = torch.arange(0, T, dtype=torch.long, decive=idx.device) # shape (T)
+        pos = torch.arange(0, T, dtype=torch.long, device=idx.device) # shape (T)
         pos_emb = self.transformer.wpe(pos) # position embeddings of shape (T, n_embd)
         tok_emb = self.transformer.wte(idx) # token embeddings of shape (B, T, n_embd)
         x = tok_emb + pos_emb
@@ -164,7 +164,7 @@ model.to('cuda')
 
 # prefix tokens
 import tiktoken
-enc = tiktoken.get_encoding()
+enc = tiktoken.get_encoding('gpt2')
 tokens = enc.encode("Hello, I'm a language model,")
 tokens = torch.tensor(tokens, dtype=torch.long) #(8,)
 tokens = tokens.unsqueeze(0).repeat(num_return_sequences, 1) # (5, 8)
@@ -189,3 +189,9 @@ while x.size(1) < max_length:
         xcol = torch.gather(topk_indices, -1, ix) # (B,1)
         # append to the sequence
         x = torch.cat((x, xcol), dim=1)
+
+# print the generated text
+for i in range(num_return_sequences):
+    tokens = x[i, :max_length].tolist()
+    decoded = enc.decode(tokens)
+    print(">", decoded)
